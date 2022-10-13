@@ -1,0 +1,66 @@
+version: "3"
+services:
+  restreamer:
+    # https://github.com/datarhei/restreamer       2.3K stars, 2022-10-13
+    # https://hub.docker.com/r/datarhei/restreamer 4.1M pulls, https://img.shields.io/docker/pulls/datarhei/restreamer.svg 2022-10-13
+    image: datarhei/restreamer
+    container_name: restreamer
+    ports:
+      - 1935:1935
+      - 8080:8080
+    networks:
+      - frontend
+    volumes:
+      - "~/db:/restreamer/db"
+    environment:
+      - RS_USERNAME=admin
+      - RS_PASSWORD=admin123
+      - RS_LOGLEVEL=4
+      - RS_TIMEZONE=America/Denver
+      - RS_SNAPSHOT_INTERVAL=1m
+      - RS_EXTRA_OUTPUTS=5
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: any
+        delay: 5s
+        window: 10s
+    links:
+      - "fblive:fblive"
+
+  fblive:
+    # https://hub.docker.com/r/dweomer/stunnel 6.2M pulls, https://img.shields.io/docker/pulls/dweomer/stunnel.svg 2022-10-13
+    image: dweomer/stunnel
+    container_name: fblive
+    expose:
+      - 1936
+    ports:
+      - 1936:1936
+    networks:
+      - frontend
+    restart: always
+    environment:
+      - STUNNEL_SERVICE=fb-live
+      - STUNNEL_CLIENT=yes
+      - STUNNEL_ACCEPT=1936
+      - STUNNEL_CONNECT=live-api-s.facebook.com:443
+      - STUNNEL_VERIFY_CHAIN=NO
+
+  https-portal:
+    # https://hub.docker.com/r/steveltn/https-portal 17M pulls, https://img.shields.io/docker/pulls/steveltn/https-portal.svg 2022-10-13
+    image: steveltn/https-portal:1
+    container_name: https-portal
+    ports:
+      - 80:80
+      - 443:443
+    restart: always
+    networks:
+      - frontend
+    environment:
+      DOMAINS: localhost -> http://restreamer:8080
+      STAGE: local
+      # DOMAINS: yourdomain.com -> http://restreamer:8080
+      # STAGE: production
+
+networks:
+  frontend:
